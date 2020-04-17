@@ -11,42 +11,40 @@
 #define MAX 356
 #define SA struct sockaddr 
 
-//Function that receives the file from the client.
-void receive_file(int sockfd) {
-    char buffer[MAX]; // stores message from client 
+//Function that sends the file to the server. 
+void send_file(int sockfd) { 
+	char buffer[MAX]; //stores message to send to server                         
+	
+	FILE *fp=fopen("myconfig.json","r"); //opens file called myconfig.json, 'r' reads the file   
+	
+	while (fgets(buffer,MAX,fp) != NULL ) //puts the file into the buffer
+		write(sockfd,buffer,strlen(buffer)); //writes to buffer which sends to server  
 
-    FILE *fp=fopen("myconfig.json","w"); //creates a file named myconfig.json in the program directory, 'w' opens for writing purposes
-    if( fp == NULL ){
-        printf("There is an error in opening the file.");
-        return ;
-    }
+	fclose(fp);
+	printf("File was sent successfully.\n");
 
-    while(read(sockfd,buffer,MAX) > 0) //reads the file into the buffer
-        fprintf(fp,"%s",buffer); 
-        fclose(fp);
-} 
+}
 
 //Function that parses the JSON file into JSON objects for use
 
 
 
+
 int main(int argc, char *argv[]) { 
-    int sockfd, connfd, len; 
-    struct sockaddr_in serv_addr, cli; //create structure object of sockaddr_in for client and server
+	int sockfd, connfd; 
+	struct sockaddr_in serv_addr, cli; //create structure object of sockaddr_in for client and server
 
-    // This is where the sockets are created.
-    sockfd = socket(AF_INET, SOCK_STREAM, 0); //creates a TCP socket
-
-    if (sockfd == -1) { 
+	// socket create and varification 
+	sockfd = socket(AF_INET, SOCK_STREAM, 0); //creates a TCP socket
+	if (sockfd == -1) { 
         printf("Socket Creation Failed.\n"); 
         exit(0); 
     } 
     else
         printf("Socket Successfully Created.\n"); 
 
-    bzero(&serv_addr, sizeof(serv_addr)); //zeroes out server address
-
-    char buffer[1024];
+	bzero(&serv_addr, sizeof(serv_addr));//zeroes out the server address
+	char buffer[1024];
     struct json_object *parsed_json; //structure that holds parsed JSON
     //structs that store the rest of fields of the JSON file
     struct json_object *Server_IP_Address;
@@ -62,7 +60,6 @@ int main(int argc, char *argv[]) {
     FILE *fp=fopen("myconfig.json","r"); //opens the file myconfig.json
     fread(buffer, 1024, 1, fp); //reads files and puts contents inside buffer
     parsed_json = json_tokener_parse(buffer); //parse JSON file's contents and converts them into a JSON object
-    fclose(fp);
 
     //this function gets the value of the key in the JSON objects 
     json_object_object_get_ex(parsed_json, "Server_IP_Address", &Server_IP_Address);
@@ -86,42 +83,24 @@ int main(int argc, char *argv[]) {
     printf("Number_UDP_Packets: %d\n", json_object_get_int(Number_UDP_Packets));
     printf("TTL_UDP_Packets: %d\n", json_object_get_int(TTL_UDP_Packets));
 
-    serv_addr.sin_family = AF_INET; // specifies address family with IPv4 Protocol 
+
+	serv_addr.sin_family = AF_INET; // specifies address family with IPv4 Protocol 
     serv_addr.sin_addr.s_addr = inet_addr(json_object_get_string(Server_IP_Address)); //binds to IP Address
     serv_addr.sin_port = htons(8765); //binds to PORT
 
-    // Binding newly created socket to given IP and verification 
-    if ((bind(sockfd, (SA*)&serv_addr, sizeof(serv_addr))) != 0) { 
-        printf("The socket bind failed\n"); 
-        exit(0); 
-    } 
-    else
-    printf("The socket was successfully binded.\n"); 
+	// This connects the client socket to server socket 
+	if (connect(sockfd, (SA*)&serv_addr, sizeof(serv_addr)) != 0) { 
+		printf("Failed to connect to server.\n"); 
+		exit(0); 
+	} 
+	else
+		printf("Successfully connected to the server.\n"); 
+	
+	FILE *fp = fopen(argv[1], "r"); //opens file called in terminal which is myconfig.json
 
-    if ((listen(sockfd, 5)) != 0) { //server is ready to listen
-        printf("Failed to listen\n"); 
-        exit(0); 
-    } 
-    else
-        printf("Server is listening\n"); 
-    
-    fp = fopen(argv[1], "w");//opens file called in terminal which is myconfig.json
-    
-    len = sizeof(cli); 
-
-    connfd = accept(sockfd, (SA*)&cli, &len); //accepts connection from socket
-
-    if (connfd < 0) { 
-        printf("Server failed to accept client.\n"); 
-        exit(0); 
-    } 
-    else
-        printf("Server successfully accepted the client.\n"); 
-
-        //calling function to receive file
-        receive_file(connfd);
-        //calling function to parse JSON file
-
-        //closes the socket after transfer
-        close(sockfd); 
-}
+	//calling function to send file
+	send_file(sockfd); 
+	//calling function to parse JSON file
+    //closes the socket after transfer
+    close(sockfd); 
+} 
