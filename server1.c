@@ -7,31 +7,30 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <ctype.h>
-#include <json-c/json.h>
+#include <json-c/json.h> //header for JSON Parser
 #define MAX 356
 #define SA struct sockaddr 
 
-void recvFile(int sockfd) 
-{ 
-    int i;
-    char buff[MAX];     // to store message from client
+//Function that receives the file from the client.
+void receive_file(int sockfd) {
+    char buffer[MAX]; // stores message from client 
 
-    FILE *fp=fopen("myconfig.json","w");
-
+    FILE *fp=fopen("myconfig.json","w"); //creates a file named myconfig.json in the program directory, 'w' opens for writing purposes
     if( fp == NULL ){
-        printf("Error IN Opening File ");
+        printf("There is an error in opening the file.");
         return ;
     }
 
-    while( read(sockfd,buff,MAX) > 0 )
-        fprintf(fp,"%s",buff);
+    while(read(sockfd,buffer,MAX) > 0) //reads the file into the buffer
+        fprintf(fp,"%s",buffer); 
         fclose(fp);
 } 
 
+//Function that parses the JSON file into JSON objects for use
 void parse(int sockfd) {
     char buffer[1024];
     struct json_object *parsed_json; //structure that holds parsed JSON
-    //stores rest of fields of the JSON file
+    //structs that store the rest of fields of the JSON file
     struct json_object *Server_IP_Address;
     struct json_object *Source_Port_Number_UDP;
     struct json_object *Destination_Port_Number_TCP_Head;
@@ -42,10 +41,11 @@ void parse(int sockfd) {
     struct json_object *Number_UDP_Packets;
     struct json_object *TTL_UDP_Packets;
 
-    FILE *fp=fopen("myconfig.json","r");
-    fread(buffer, 1024, 1, fp); //reads files and puts contents inside bufferD
-    parsed_json = json_tokener_parse(buffer); //parse json file's contents and convert them into a json object
+    FILE *fp=fopen("myconfig.json","r"); //opens the file myconfig.json
+    fread(buffer, 1024, 1, fp); //reads files and puts contents inside buffer
+    parsed_json = json_tokener_parse(buffer); //parse JSON file's contents and converts them into a JSON object
 
+    //this function gets the value of the key in the JSON objects 
     json_object_object_get_ex(parsed_json, "Server_IP_Address", &Server_IP_Address);
     json_object_object_get_ex(parsed_json, "Source_Port_Number_UDP", &Source_Port_Number_UDP);
     json_object_object_get_ex(parsed_json, "Destination_Port_Number_TCP_Head", &Destination_Port_Number_TCP_Head);
@@ -56,6 +56,7 @@ void parse(int sockfd) {
     json_object_object_get_ex(parsed_json, "Number_UDP_Packets", &Number_UDP_Packets);
     json_object_object_get_ex(parsed_json, "TTL_UDP_Packets", &TTL_UDP_Packets);
 
+    //print function that tests wether or not the parsing is successful
     printf("Server_IP_Address: %s\n", json_object_get_string(Server_IP_Address));
     printf("Source_Port_Number_UDP: %s\n", json_object_get_string(Source_Port_Number_UDP));
     printf("Destination_Port_Number_TCP_Head: %s\n", json_object_get_string(Destination_Port_Number_TCP_Head));
@@ -69,62 +70,58 @@ void parse(int sockfd) {
 }
 
 
+int main(int argc, char *argv[]) { 
+    int sockfd, connfd, len; 
+    struct sockaddr_in serv_addr, cli; //create structure object of sockaddr_in for client and server
 
-int main(int argc, char *argv[])  
-{ 
-    int sockfd, connfd, len;                // create socket file descriptor 
-    struct sockaddr_in serv_addr, cli;      // create structure object of sockaddr_in for client and server
-
-    // socket create and verification 
-    sockfd = socket(AF_INET, SOCK_STREAM, 0);           // creating a TCP socket ( SOCK_STREAM )
+    // This is where the sockets are created.
+    sockfd = socket(AF_INET, SOCK_STREAM, 0); //creates a TCP socket
 
     if (sockfd == -1) { 
-        printf("socket creation failed...\n"); 
+        printf("Socket Creation Failed.\n"); 
         exit(0); 
     } 
     else
-        printf("Socket successfully created..\n"); 
+        printf("Socket Successfully Created.\n"); 
 
-    // empty the 
-    bzero(&serv_addr, sizeof(serv_addr)); 
+    bzero(&serv_addr, sizeof(serv_addr)); //zeroes out server address
 
-    // assign IP, PORT 
-    serv_addr.sin_family = AF_INET;
-    serv_addr.sin_addr.s_addr = inet_addr("10.0.0.218");
-    serv_addr.sin_port = htons(8765);
+    serv_addr.sin_family = AF_INET; // specifies address family with IPv4 Protocol 
+    serv_addr.sin_addr.s_addr = inet_addr("10.0.0.218"); //binds to IP Address
+    serv_addr.sin_port = htons(8765); //binds to PORT
 
     // Binding newly created socket to given IP and verification 
     if ((bind(sockfd, (SA*)&serv_addr, sizeof(serv_addr))) != 0) { 
-        printf("socket bind failed...\n"); 
+        printf("The socket bind failed\n"); 
         exit(0); 
     } 
     else
-    printf("Socket successfully binded..\n"); 
+    printf("The socket was successfully binded.\n"); 
 
-    // Now server is ready to listen and verification 
-    if ((listen(sockfd, 5)) != 0) { 
-        printf("Listen failed...\n"); 
+    if ((listen(sockfd, 5)) != 0) { //server is ready to listen
+        printf("Failed to listen\n"); 
         exit(0); 
     } 
     else
-        printf("Server listening..\n"); 
-    FILE *fp = fopen(argv[1], "w");
+        printf("Server is listening\n"); 
+    
+    FILE *fp = fopen(argv[1], "w");//opens file called in terminal which is myconfig.json
+    
     len = sizeof(cli); 
 
-    // Accept the data packet from client and verification 
-    connfd = accept(sockfd, (SA*)&cli, &len);   // accepts connection from socket
+    connfd = accept(sockfd, (SA*)&cli, &len); //accepts connection from socket
 
     if (connfd < 0) { 
-        printf("server acccept failed...\n"); 
+        printf("Server failed to accept client.\n"); 
         exit(0); 
     } 
     else
-        printf("server acccept the client...\n"); 
+        printf("Server successfully accepted the client.\n"); 
 
-        // Function for chatting between client and server 
-        recvFile(connfd);
+        //calling function to receive file
+        receive_file(connfd);
+        //calling function to parse JSON file
         parse(sockfd);
-        // After transfer close the socket 
+        //closes the socket after transfer
         close(sockfd); 
-
 }
