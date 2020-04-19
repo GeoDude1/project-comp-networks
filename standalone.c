@@ -1,15 +1,12 @@
 /*  Copyright (C) 2011-2015  P.D. Buchan (pdbuchan@yahoo.com)
-
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
-
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
-
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
@@ -40,7 +37,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 // Define some constants.
 #define IP4_HDRLEN 20         // IPv4 header length
 #define TCP_HDRLEN 20         // TCP header length, excludes options data
-
+#define BUF_SIZE 2000
 // Function prototypes
 uint16_t checksum (uint16_t *, int);
 uint16_t tcp4_checksum (struct ip, struct tcphdr);
@@ -61,6 +58,7 @@ main (int argc, char **argv)
 	struct sockaddr_in *ipv4, sin;
 	struct ifreq ifr;
 	void *tmp;
+	char buffer[BUF_SIZE];
 
 	struct json_object *parsed_json, *Server_IP_Address, *Source_Port_Number_UDP, *Destination_Port_Number_UDP,
     *Destination_Port_Number_TCP_Head, *Destination_Port_Number_TCP_Tail, *Port_Number_TCP, 
@@ -84,7 +82,7 @@ main (int argc, char **argv)
         return EXIT_FAILURE;
     }
 
-    fp = fopen(argv[1],"r"); //opens the file myconfig.json
+    FILE *fp = fopen(argv[1],"r"); //opens the file myconfig.json
     if(fp == NULL)
     {
         printf("ERROR OPENNING FILE!\n"); //catch null pointer
@@ -505,6 +503,31 @@ allocate_intmem (int len)
 		fprintf (stderr, "ERROR: Cannot allocate memory for array allocate_intmem().\n");
 		exit (EXIT_FAILURE);
 	}
+
+//Filling the payload with high entropy data
+void read_high_entropy_data(int * data, int len)
+{
+    FILE * f = fopen("/dev/urandom", "r");
+    int temp;
+    if(f == NULL)
+    {
+        return;
+    }
+    for(int i=2; i < len; i++)
+    {
+        temp = (int) getc(f);
+        data[i] = temp;
+    }
+}
+
+//Filling payload with low entropy data
+void read_low_entropy_data(int * data, int len)
+{
+    for(int i=2; i < len; i++) 
+    {
+        data[i] = 0;
+    }
+}
 
 
 int datagram[json_object_get_int(Size_UDP_Payload)+2];
